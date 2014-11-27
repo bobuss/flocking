@@ -81,12 +81,6 @@ Color.prototype.toRGBA = function() {
 /*
 Boid class
 */
-var MAX_SPEED = 2;
-var MAX_FORCE = 0.05;
-var NEIGHBOUR_RADIUS = 35;
-var DESIRED_SEPARATION = 5;
-var MOUSE_RADIUS = 10;
-var GRAVITY = 6;
 
 Boid = function(position, ctx, mouse) {
   this.position = position.copy();
@@ -99,11 +93,10 @@ Boid = function(position, ctx, mouse) {
 };
 
 Boid.prototype.step = function(neighbours) {
-  var acceleration = this.flock(neighbours).plus(this.gravitate());
+  var acceleration = this.flock(neighbours).plus(this.gravitate()).plus(this.avoidBorders());
   // Limit the maximum speed at which a boid can go
   this.velocity = this.velocity.plus(acceleration).limit(MAX_SPEED);
   this.position = this.position.plus(this.velocity);
-  this._wrapIfNeeded()
 };
 
 Boid.prototype.flock = function(neighbours) {
@@ -222,22 +215,32 @@ Boid.prototype.gravitate = function() {
   return gravity.scale(GRAVITY);
 };
 
-Boid.prototype._wrapIfNeeded = function() {
-  if (this.position.x < 0) {
-    this.position.x = WIDTH;
-  } else if (this.position.x > WIDTH) {
-    this.position.x = 0;
+Boid.prototype.avoidBorders = function() {
+  var gravity = new Vector(0, 0);
+
+  var borders = new Array();
+  borders.push(new Vector(this.position.x, 0));
+  borders.push(new Vector(this.position.x, HEIGHT));
+  borders.push(new Vector(0, this.position.y));
+  borders.push(new Vector(WIDTH, this.position.y));
+
+  for (var i = 0 ; i < 4 ; i++) {
+    var borderDirection = borders[i].minus(this.position);
+    var d = borderDirection.magnitude();
+    if (d < 0) {
+      d = 0.01;
+    }
+    if (d > 0 && d < NEIGHBOUR_RADIUS * 5) {
+      gravity = gravity.plus(borderDirection.normalize().scale( -1 / ( d * d )))
+    }
   }
-  if (this.position.y < 0) {
-    this.position.y = HEIGHT;
-  } else if (this.position.y > HEIGHT) {
-    this.position.y = 0;
-  }
+
+  return gravity.scale(GRAVITY);
 };
 
 Boid.prototype.render = function() {
   this.ctx.fillStyle = this.color.toRGBA()
-  this.ctx.fillRect(this.position.x, this.position.y, 2, 2 );
+  this.ctx.fillRect(this.position.x, this.position.y, 4, 4);
 };
 
 var canvas = document.getElementById("canvas");
@@ -256,8 +259,6 @@ canvas.addEventListener('mousemove', function(e) {
   mouse.y = e.pageY;
 }, false);
 
-var N = 250;
-
 flock = function() {
   var start = new Vector(WIDTH / 2, HEIGHT / 2);
   var boids = new Array();
@@ -267,7 +268,7 @@ flock = function() {
   }
 
   function frame() {
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
     for (var i = 0 ; i < N ; i++) {
       var boid = boids[i];
@@ -277,7 +278,14 @@ flock = function() {
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+};
 
-}
+var N = 250;
+var MAX_SPEED = 2;
+var MAX_FORCE = 0.05;
+var NEIGHBOUR_RADIUS = 45;
+var DESIRED_SEPARATION = 5;
+var MOUSE_RADIUS = 10;
+var GRAVITY = 6;
 
 flock();
