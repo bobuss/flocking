@@ -85,18 +85,21 @@ var MAX_SPEED = 2;
 var MAX_FORCE = 0.05;
 var NEIGHBOUR_RADIUS = 35;
 var DESIRED_SEPARATION = 5;
+var MOUSE_RADIUS = 10;
+var GRAVITY = 6;
 
-Boid = function(position, ctx) {
+Boid = function(position, ctx, mouse) {
   this.position = position.copy();
   this.velocity = new Vector(randFloat(-1, 1), randFloat(-1, 1));
   this.acceleration = new Vector(0, 0);
   this.r = 2;
   this.ctx = ctx;
+  this.mouse = mouse;
   this.color = new Color(randInt(0, 255), randInt(0, 255), randInt(0, 255));
 };
 
 Boid.prototype.step = function(neighbours) {
-  var acceleration = this.flock(neighbours);
+  var acceleration = this.flock(neighbours).plus(this.gravitate());
   // Limit the maximum speed at which a boid can go
   this.velocity = this.velocity.plus(acceleration).limit(MAX_SPEED);
   this.position = this.position.plus(this.velocity);
@@ -195,13 +198,28 @@ Boid.prototype.separate = function(neighbours) {
       mean = mean.plus(this.position.minus(boid.position).normalize().scale(1 / d));
       count++
     }
-
   }
   if (count > 0) {
     mean = mean.scale(1/count);
   }
 
   return mean
+};
+
+Boid.prototype.gravitate = function() {
+  var gravity = new Vector(0, 0);
+
+  var mouseDirection = this.mouse.minus(this.position);
+  var d = mouseDirection.magnitude() - MOUSE_RADIUS;
+
+  if (d < 0) {
+    d = 0.01;
+  }
+
+  if (d > 0 && d < NEIGHBOUR_RADIUS * 5) {
+    gravity = gravity.plus(mouseDirection.normalize().scale( -1 / ( d * d )))
+  }
+  return gravity.scale(GRAVITY);
 };
 
 Boid.prototype._wrapIfNeeded = function() {
@@ -228,14 +246,24 @@ var ctx = canvas.getContext("2d");
 canvas.width = WIDTH = 500;
 canvas.height = HEIGHT = 500;
 
-var N = 150;
+/*
+mouse management
+*/
+var mouse = new Vector(0, 0);
+
+canvas.addEventListener('mousemove', function(e) {
+  mouse.x = e.pageX;
+  mouse.y = e.pageY;
+}, false);
+
+var N = 250;
 
 flock = function() {
   var start = new Vector(WIDTH / 2, HEIGHT / 2);
   var boids = new Array();
 
   for (var i = 0 ; i < N ; i++) {
-    boids.push(new Boid(start, ctx));
+    boids.push(new Boid(start, ctx, mouse));
   }
 
   function frame() {
