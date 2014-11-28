@@ -248,6 +248,7 @@ var ctx = canvas.getContext("2d");
 
 canvas.width = WIDTH = 500;
 canvas.height = HEIGHT = 500;
+var rect = canvas.getBoundingClientRect();
 
 /*
 mouse management
@@ -255,8 +256,13 @@ mouse management
 var mouse = new Vector(0, 0);
 
 canvas.addEventListener('mousemove', function(e) {
-  mouse.x = e.pageX;
-  mouse.y = e.pageY;
+  mouse.x = e.pageX - rect.left;
+  mouse.y = e.pageY - rect.top;
+
+
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(mouse.x, mouse.y, 4, 4);
+
 }, false);
 
 flock = function() {
@@ -286,6 +292,6 @@ var MAX_FORCE = 0.05;
 var NEIGHBOUR_RADIUS = 45;
 var DESIRED_SEPARATION = 5;
 var MOUSE_RADIUS = 10;
-var GRAVITY = 6;
+var GRAVITY = 26;
 
 flock();
