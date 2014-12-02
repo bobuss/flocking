@@ -1,5 +1,10 @@
 (function(window, document){
+
+  /**/
   /* Utils */
+  /**/
+  INFINY = 100000000;
+
   function randInt(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
   }
@@ -8,7 +13,14 @@
     return Math.random() * (max - min) + min;
   }
 
+  Hit = function() {
+    this.point = INFINY;
+    this.distance = INFINY;
+  }
+
+  /**/
   /* Vector class */
+  /**/
   Vector = function(x, y) {
     this.x = x;
     this.y = y;
@@ -67,18 +79,89 @@
     return 'rgba(' + this.r + ', ' + this.g + ', ' + this.b + ' , 0.8)';
   };
 
+  /**/
+  /* Line class */
+  /**/
+  Line = function(m, z) {
+    // y = mx + z
+    this.m = m;
+    this.z = z;
+    // mx - y + z = 0;
+    this.a = m;
+    this.b = -1;
+    this.c = z;
+  }
 
+  Line.prototype.equation = function(x) {
+    return this.m * x + this.z
+  };
+
+  Line.prototype.distance = function(point) {
+    var norm2 = this.a * this.a + this.b * this.b;
+    var orth = Math.abs(this.a * point.x + this.b * point.y + this.c) / Math.sqrt(norm2);
+    var proj = new Vector(
+      (this.b * this.b * point.x - this.a * this.b * point.y - this.a * this.c) / norm2,
+      (-this.a * this.b * point.x + this.a * this.a * point.y - this.b * this.c) / norm2
+    );
+
+    var hit = new Hit();
+    hit.point = proj;
+    hit.distance = orth;
+    return hit;
+  };
+
+  Line.prototype.render = function() {
+    var context = Line.ctx;
+    context.beginPath();
+    context.moveTo(this.minX, this.equation(this.minX));
+    for(var x = 0; x <= Boid.width; x += 100) {
+      context.lineTo(x, this.equation(x));
+    }
+    context.lineJoin = 'round';
+    context.lineWidth = 2;
+    context.strokeStyle = "rgba(200,200,200,1)";
+    context.stroke();
+  };
+
+  /**/
+  /* Circle class */
+  /**/
+  Circle = function(center, radius) {
+    this.center = center;
+    this.radius = radius;
+  }
+
+  Circle.prototype.distance = function(point) {
+    var d = point.distance(this.center) - this.radius;
+    var hit = new Hit();
+    hit.point = this.center;
+    hit.distance = d;
+    return hit;
+  };
+
+  Circle.prototype.render = function() {
+    Circle.ctx.beginPath();
+    Circle.ctx.arc(this.center.x, this.center.y, this.radius, 0, 2 * Math.PI, false);
+    Circle.ctx.lineWidth = 1;
+    Circle.ctx.strokeStyle = '#FF3377';
+    Circle.ctx.stroke();
+  };
+
+  /**/
   /* Boid class */
-  Boid = function(position, ctx) {
+  /**/
+  Boid = function(position, shapes) {
     this.position = position.copy();
     this.velocity = new Vector(randFloat(-1, 1), randFloat(-1, 1));
     this.acceleration = new Vector(0, 0);
     this.r = 2;
-    this.ctx = ctx;
+    this.shapes = shapes;
     this.color = new Color(randInt(0, 255), randInt(0, 255), randInt(0, 255));
   };
 
+  /**/
   /* Some defaults */
+  /**/
   Boid.height = 500;
   Boid.width = 500;
   Boid.max_speed = 2;
@@ -88,10 +171,11 @@
   Boid.gravity = 26;
 
   Boid.prototype.step = function(neighbours) {
-    var acceleration = this.flock(neighbours).plus(this.avoidBorders());
+    var acceleration = this.flock(neighbours).plus(this.avoidWalls())
     // Limit the maximum speed at which a boid can go
     this.velocity = this.velocity.plus(acceleration).limit(Boid.max_speed);
     this.position = this.position.plus(this.velocity);
+    this._wrapIfNeeded();
   };
 
   Boid.prototype.flock = function(neighbours) {
@@ -136,7 +220,8 @@
     if (d > 0) {
       desired = desired.normalize();
       // Two options for desired vector magnitude
-      // (1 -- based on distance, 2 -- maxspeed)
+      // 1 -- based on distance,
+      // 2 -- maxspeed
       if (d < 100.0) {
         // This damping is arbitrary
         desired = desired.scale(Boid.max_speed * (d / 100));
@@ -194,52 +279,84 @@
     return mean
   };
 
-  Boid.prototype.avoidBorders = function() {
-    var gravity = new Vector(0, 0);
+  Boid.prototype.avoidWalls = function() {
 
-    var borders = new Array();
-    borders.push(new Vector(this.position.x, 0));
-    borders.push(new Vector(this.position.x, Boid.height));
-    borders.push(new Vector(0, this.position.y));
-    borders.push(new Vector(Boid.width, this.position.y));
+    var acc = new Vector(0, 0);
 
-    for (var i = 0 ; i < 4 ; i++) {
-      var borderDirection = borders[i].minus(this.position);
-      var d = borderDirection.magnitude();
+    for (var i = 0 ; i < this.shapes.length ; ++i) {
+
+      var shape = this.shapes[i];
+
+      var ext_dist = shape.distance(this.position);
+
+      var closestPoint = ext_dist.point;
+      var d = ext_dist.distance;
+      var mouseDirection = closestPoint.minus(this.position);
+
       if (d < 0) {
         d = 0.01;
       }
       if (d > 0 && d < Boid.neighbour_radius * 5) {
-        gravity = gravity.plus(borderDirection.normalize().scale( -1 / ( d * d )))
+        acc = acc.plus(mouseDirection.normalize().scale( -1 / ( d * d )))
       }
     }
-    return gravity.scale(Boid.gravity);
+
+    return acc.scale(Boid.gravity);
+
+  };
+
+  Boid.prototype._wrapIfNeeded = function() {
+    if (this.position.x < 0) {
+      this.position.x = Boid.width;
+    } else if (this.position.x > Boid.width) {
+      this.position.x = 0;
+    }
+    if (this.position.y < 0) {
+      this.position.y = Boid.height;
+    } else if (this.position.y > Boid.height) {
+      this.position.y = 0;
+    }
   };
 
   Boid.prototype.render = function() {
-    this.ctx.fillStyle = this.color.toRGBA()
-    this.ctx.fillRect(this.position.x, this.position.y, 4, 4);
+    Boid.ctx.fillStyle = this.color.toRGBA()
+    Boid.ctx.fillRect(this.position.x, this.position.y, 4, 4);
   };
 
+  /**/
+  /* Flocking */
+  /**/
   Flocking = function(parentNode, options) {
+    var self = this;
     var canvasElement = document.createElement('canvas');
     this.ctx = canvasElement.getContext("2d");
 
     // parse options
     var options = options || {};
-    Boid.height = this.width = canvasElement.width = options.height || 500;
-    Boid.width = this.height = canvasElement.height = options.width || 500;
+    Boid.height = this.height = canvasElement.height = options.height || 500;
+    Boid.width = this.width = canvasElement.width = options.width || 500;
     Boid.max_speed = options.max_speed || 2;
     Boid.max_force = options.max_force || 0.05;
     Boid.neighbour_radius = options.neighbour_radius || 45;
     Boid.desired_separation = options.desired_separation || 5;
     Boid.gravity = options.gravity || 26;
+    Boid.mouse_radius = options.mouse_radius || 10;
     var N = options.N || 100;
 
     parentNode.appendChild(canvasElement);
-
-    this.start = new Vector(this.width / 2, this.height / 2);
+    var rect = canvasElement.getBoundingClientRect();
     this.boids = new Array();
+
+    Circle.ctx = Boid.ctx = Line.ctx = this.ctx;
+    this.shapes = [
+      new Line(2, 54),
+      new Line(-0.12, 154),
+      new Circle(new Vector(250, 300), 50),
+      new Circle(new Vector(300, 200), 18)
+      //new Line(new Vector(120, 250), new Vector(200, 240)),
+      //new Line(new Vector(200, 240), new Vector(100, 200)),
+      //new Line(new Vector(200, 0), new Vector(0, 200)),
+    ];
 
     for (var i = 0 ; i < N ; i++) {
       this.addBoid();
@@ -248,7 +365,8 @@
   };
 
   Flocking.prototype.addBoid = function() {
-    this.boids.push(new Boid(this.start, this.ctx));
+    this.boids.push(new Boid(new Vector(randInt(0, this.width), randInt(0, this.height)),
+                             this.shapes));
   };
 
   Flocking.prototype.reqAnimationFrame = function() {
@@ -259,11 +377,18 @@
     this.reqAnimationFrame()
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
     this.ctx.fillRect(0, 0, this.width, this.height);
+
+    for (var i = 0 ; i < this.shapes.length ; i++) {
+      this.shapes[i].render();
+    }
+
     for (var i = 0 ; i < this.boids.length ; i++) {
       var boid = this.boids[i];
       boid.step(this.boids);
       boid.render();
     }
+
+
   };
 
   document.Flocking = Flocking;
