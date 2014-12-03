@@ -3,6 +3,12 @@
 [http://www.tornil.me/flocking/](http://www.tornil.me/flocking/)
 
 
+## Build
+
+    $ npm install
+    $ grunt
+
+
 ## Usage
 
     var flocking = new Flocking(document.getElementById("flocking"), {
