@@ -38,10 +38,8 @@ Line.prototype.distance = function(point) {
 Line.prototype.render = function() {
   var context = Line.ctx;
   context.beginPath();
-  context.moveTo(this.minX, this.equation(this.minX));
-  for(var x = 0; x <= Line.width; x += 100) {
-    context.lineTo(x, this.equation(x));
-  }
+  context.moveTo(0, this.equation(0));
+  context.lineTo(Line.width, this.equation(Line.width));
   context.lineJoin = 'round';
   context.lineWidth = 2;
   context.strokeStyle = "rgba(200,200,200,1)";

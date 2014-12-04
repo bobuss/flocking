@@ -309,30 +309,36 @@ var Vector = require('./vector');
 var Line = require('./line');
 var Circle = require('./circle');
 var Flocking = require('./flocking');
+var HEIGHT = require('./utils').HEIGHT;
+var WIDTH = require('./utils').WIDTH;
 
 document.addEventListener('DOMContentLoaded', function() {
 
+  var canvasHeight = HEIGHT/1.4;
+  var canvasWidth = WIDTH;
+
   var shapes = [
-    new Line(2, 54),
+    new Line(3, 54),
     new Line(-0.12, 154),
-    new Circle(new Vector(250, 300), 50),
-    new Circle(new Vector(300, 200), 18)
+    new Circle(new Vector(canvasWidth/1.8, canvasHeight/1.3), canvasWidth/13),
+    new Circle(new Vector(canvasWidth/2.1, canvasHeight/2.9), canvasWidth/21),
+    new Circle(new Vector(canvasWidth/3.3, canvasHeight/2.4), canvasWidth/29),
   ];
 
   new Flocking(document.getElementById("flocking"), {
-    N: 100,                     // number of boids
-    height: 400,                // height of the canvas
-    width: 400,                 // width  of the canvas
+    N: 200,                     // number of boids
+    height: canvasHeight,       // height of the canvas
+    width: canvasWidth,         // width  of the canvas
     max_speed: 2,               // speed limit
     max_force: 0.07,            // force limit
-    neighbour_radius: 35,       // neighbourhood factor
+    neighbour_radius: WIDTH/30, // neighbourhood factor
     desired_separation: 5,      // speration parameter
     gravity: 6,                 // gravity parameter
     shapes: shapes              // shapes on scene
   });
 
 });
-},{"./circle":2,"./flocking":4,"./line":6,"./vector":8}],6:[function(require,module,exports){
+},{"./circle":2,"./flocking":4,"./line":6,"./utils":7,"./vector":8}],6:[function(require,module,exports){
 /*
 Line class
 */
@@ -373,10 +379,8 @@ Line.prototype.distance = function(point) {
 Line.prototype.render = function() {
   var context = Line.ctx;
   context.beginPath();
-  context.moveTo(this.minX, this.equation(this.minX));
-  for(var x = 0; x <= Line.width; x += 100) {
-    context.lineTo(x, this.equation(x));
-  }
+  context.moveTo(0, this.equation(0));
+  context.lineTo(Line.width, this.equation(Line.width));
   context.lineJoin = 'round';
   context.lineWidth = 2;
   context.strokeStyle = "rgba(200,200,200,1)";
@@ -393,6 +397,9 @@ Utils
 'use strict';
 
 var INFINY = 100000000;
+
+var WIDTH = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+var HEIGHT = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
 
 var randInt = function(min, max) {
   return Math.floor(Math.random() * (max - min)) + min;
@@ -411,6 +418,8 @@ exports.INFINY = INFINY;
 exports.randInt = randInt;
 exports.randFloat = randFloat;
 exports.Hit = Hit;
+exports.WIDTH = WIDTH;
+exports.HEIGHT = HEIGHT;
 
 },{}],8:[function(require,module,exports){
 /*
