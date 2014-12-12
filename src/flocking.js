@@ -18,6 +18,7 @@ var Flocking = function(parentNode, options) {
   options = options || {};
   Boid.height = this.height = canvasElement.height = options.height || 500;
   Boid.width = Line.width = this.width = canvasElement.width = options.width || 500;
+  Boid.deep = 500;
   Boid.maxSpeed = options.maxSpeed || 2;
   Boid.maxForce = options.maxForce || 0.05;
   Boid.neighbourRadius = options.neighbourRadius || 45;

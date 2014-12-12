@@ -32,9 +32,11 @@ Boid.maxForce = 0.05;
 Boid.neighbourRadius = 45;
 Boid.desiredSeparation = 5;
 Boid.gravity = 26;
+Boid.center = new Vector(0, 0, (Boid.deep - Boid.minDeep) / 2);
 
 Boid.prototype.step = function(neighbours) {
-  var acceleration = this.flock(neighbours).plus(this.avoidWalls());
+  var acceleration = this.flock(neighbours).plus(this.avoidWalls())
+                                           .plus(this.avoidShapes());
   // Limit the maximum speed at which a boid can go
   this.velocity = this.velocity.plus(acceleration).limit(Boid.maxSpeed);
   this.position = this.position.plus(this.velocity);
@@ -51,12 +53,13 @@ Boid.prototype.flock = function(neighbours) {
 
 Boid.prototype.cohere = function(neighbours) {
   // Called to get the cohesion component of the acceleration
-  var sum = new Vector(0, 0, 0);
-  var count = 0;
+  var sum = new Vector(0, 0, 0),
+      count = 0,
+      i, boid, d;
 
-  for (var i = 0 ; i < neighbours.length ; i++) {
-    var boid = neighbours[i];
-    var d = this.position.distance(boid.position);
+  for (i = 0 ; i < neighbours.length ; i++) {
+    boid = neighbours[i];
+    d = this.position.distance(boid.position);
     if ((d > 0) && (d < Boid.neighbourRadius)) {
       sum = sum.plus(boid.position);
       count++;
@@ -101,12 +104,13 @@ Boid.prototype.steerTo = function(target) {
 
 Boid.prototype.align = function(neighbours) {
   // Alignment component for the frame's acceleration
-  var mean = new Vector(0, 0, 0);
-  var count = 0;
+  var mean = new Vector(0, 0, 0),
+      count = 0,
+      i, boid, d;
 
-  for (var i = 0 ; i < neighbours.length ; i++) {
-    var boid = neighbours[i];
-    var d = this.position.distance(boid.position);
+  for (i = 0 ; i < neighbours.length ; i++) {
+    boid = neighbours[i];
+    d = this.position.distance(boid.position);
     if ((d > 0) && (d < Boid.neighbourRadius)) {
       mean = mean.plus(boid.velocity);
       count++;
@@ -123,12 +127,13 @@ Boid.prototype.align = function(neighbours) {
 
 Boid.prototype.separate = function(neighbours) {
   //Separation component for the frame's acceleration
-  var mean = new Vector(0, 0, 0);
-  var count = 0;
+  var mean = new Vector(0, 0, 0),
+      count = 0,
+      i, boid, d;
 
-  for (var i = 0 ; i < neighbours.length ; i++) {
-    var boid = neighbours[i];
-    var d = this.position.distance(boid.position);
+  for (i = 0 ; i < neighbours.length ; i++) {
+    boid = neighbours[i];
+    d = this.position.distance(boid.position);
     if ((d > 0) && (d < Boid.desiredSeparation)) {
       // Normalized, weighted by distance vector pointing away from the neighbour
       mean = mean.plus(this.position.minus(boid.position).normalize().scale(1 / d));
@@ -142,10 +147,12 @@ Boid.prototype.separate = function(neighbours) {
   return mean;
 };
 
+// aquarium : 6 planes
 Boid.prototype.avoidWalls = function() {
-  var acc = new Vector(0, 0, 0);
+  var acc = new Vector(0, 0, 0),
+      borders = [],
+      i, borderDirection, d;
 
-  var borders = [];
   borders.push(new Vector(this.position.x, this.position.y, Boid.minDeep));
   borders.push(new Vector(this.position.x, this.position.y, Boid.deep));
 
@@ -155,9 +162,9 @@ Boid.prototype.avoidWalls = function() {
   borders.push(new Vector(Boid.width / 2, this.position.y, this.position.z));
   borders.push(new Vector(- Boid.width / 2, this.position.y, this.position.z));
 
-  for (var i = 0 ; i < borders.length ; i++) {
-    var borderDirection = borders[i].minus(this.position);
-    var d = borderDirection.magnitude();
+  for (i = 0 ; i < borders.length ; i++) {
+    borderDirection = borders[i].minus(this.position);
+    d = borderDirection.magnitude();
 
     if (d < 0) {
       d = 0.01;
@@ -170,18 +177,16 @@ Boid.prototype.avoidWalls = function() {
 };
 
 Boid.prototype.avoidShapes = function() {
+  var acc = new Vector(0, 0, 0),
+      i, shape, extDist, closestPoint, d, mouseDirection;
 
-  var acc = new Vector(0, 0, 0);
+  for (i = 0 ; i < this.shapes.length ; ++i) {
 
-  for (var i = 0 ; i < this.shapes.length ; ++i) {
-
-    var shape = this.shapes[i];
-
-    var ext_dist = shape.distance(this.position);
-
-    var closestPoint = ext_dist.point;
-    var d = ext_dist.distance;
-    var mouseDirection = closestPoint.minus(this.position);
+    shape = this.shapes[i];
+    extDist = shape.distance(this.position);
+    closestPoint = extDist.point;
+    d = extDist.distance;
+    mouseDirection = closestPoint.minus(this.position);
 
     if (d < 0) {
       d = 0.01;
@@ -225,11 +230,25 @@ Boid.prototype.size = function() {
   return factor * (1 - this.position.z / Boid.deep);
 };
 
+Boid.prototype.isVisible = function() {
+  var visible = true,
+      shape, i;
+  for (i = 0 ; i < this.shapes.length ; ++i) {
+    shape = this.shapes[i];
+    visible = visible && !shape.isHiding(this.position);
+  }
+  return visible;
+};
+
 Boid.prototype.render = function() {
-  Boid.ctx.fillStyle = this.color.toRGBA();
-  Boid.ctx.fillRect(this.projected().x,
-                    this.projected().y,
-                    this.size(), this.size());
+  if (this.isVisible()) {
+    var proj = this.projected(),
+        size = this.size();
+    Boid.ctx.fillStyle = this.color.toRGBA();
+    Boid.ctx.fillRect(proj.x,
+                      proj.y,
+                      size, size);
+  }
 };
 
 module.exports = Boid;
@@ -303,6 +322,7 @@ var Flocking = function(parentNode, options) {
   options = options || {};
   Boid.height = this.height = canvasElement.height = options.height || 500;
   Boid.width = Line.width = this.width = canvasElement.width = options.width || 500;
+  Boid.deep = 500;
   Boid.maxSpeed = options.maxSpeed || 2;
   Boid.maxForce = options.maxForce || 0.05;
   Boid.neighbourRadius = options.neighbourRadius || 45;
@@ -358,7 +378,7 @@ module.exports = Flocking;
 
 'use strict';
 
-//var Vector = require('./vector');
+//var Vector = require('./vector3d');
 //var Line = require('./line');
 //var Circle = require('./circle');
 var Flocking = require('./flocking');
@@ -371,6 +391,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var canvasWidth = WIDTH;
 
   var shapes = [
+    // new Sphere(new Vector(0, 0, 400), 100),
     // new Line(3, 54),
     // new Line(-0.12, 154),
     // new Circle(new Vector(canvasWidth/1.8, canvasHeight/1.3), canvasWidth/13),
@@ -382,10 +403,10 @@ document.addEventListener('DOMContentLoaded', function() {
     N: 220,                     // number of boids
     height: canvasHeight,       // height of the canvas
     width: canvasWidth,         // width  of the canvas
-    maxSpeed: 3,               // speed limit
-    maxForce: 0.02,            // force limit
-    neighbourRadius: 85,       // neighbourhood factor
-    desiredSeparation: 50,     // speration parameter
+    maxSpeed: 3,                // speed limit
+    maxForce: 0.02,             // force limit
+    neighbourRadius: 85,        // neighbourhood factor
+    desiredSeparation: 50,      // speration parameter
     gravity: 8,                 // gravity parameter
     shapes: shapes              // shapes on scene
   });

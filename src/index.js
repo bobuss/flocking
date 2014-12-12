@@ -1,7 +1,7 @@
 
 'use strict';
 
-//var Vector = require('./vector');
+//var Vector = require('./vector3d');
 //var Line = require('./line');
 //var Circle = require('./circle');
 var Flocking = require('./flocking');
@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var canvasWidth = WIDTH;
 
   var shapes = [
+    // new Sphere(new Vector(0, 0, 400), 100),
     // new Line(3, 54),
     // new Line(-0.12, 154),
     // new Circle(new Vector(canvasWidth/1.8, canvasHeight/1.3), canvasWidth/13),
@@ -25,10 +26,10 @@ document.addEventListener('DOMContentLoaded', function() {
     N: 220,                     // number of boids
     height: canvasHeight,       // height of the canvas
     width: canvasWidth,         // width  of the canvas
-    maxSpeed: 3,               // speed limit
-    maxForce: 0.02,            // force limit
-    neighbourRadius: 85,       // neighbourhood factor
-    desiredSeparation: 50,     // speration parameter
+    maxSpeed: 3,                // speed limit
+    maxForce: 0.02,             // force limit
+    neighbourRadius: 85,        // neighbourhood factor
+    desiredSeparation: 50,      // speration parameter
     gravity: 8,                 // gravity parameter
     shapes: shapes              // shapes on scene
   });

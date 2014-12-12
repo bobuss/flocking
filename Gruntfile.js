@@ -34,6 +34,5 @@ module.exports = function (grunt) {
   // define tasks
   grunt.registerTask('default', [
     'jshint', 'clean', 'browserify', 'uglify'
-    //'clean', 'browserify'
   ]);
 };
